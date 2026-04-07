@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSA Analyzer v37 - Bright & Rainbow</title>
+    <title>PSA Analyzer v38 - Original Brightness</title>
     <style>
         * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; box-sizing: border-box; }
         body { 
@@ -14,7 +14,7 @@
         #header { background: #1a1a1a; width: 100%; padding: 5px 0; text-align: center; border-bottom: 1px solid #333; z-index: 100; flex-shrink: 0; }
         .top-info { width: 95%; background: rgba(30, 30, 30, 0.95); padding: 8px; border-radius: 8px; margin: 5px 0; display: flex; flex-direction: column; gap: 5px; z-index: 100; border: 1px solid #444; flex-shrink: 0; }
         #stage { position: relative; background: #000; width: 100vw; flex-grow: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 10px; }
-        canvas { display: block; background-color: #222; } /* キャンバス自体の背景を少し明るく */
+        canvas { display: block; }
 
         .slider-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #ccc; }
         input[type="range"] { flex: 1; accent-color: #adff2f; height: 30px; }
@@ -56,8 +56,8 @@
 <div class="top-info">
     <div class="slider-row">
         <span>明るさ</span>
-        <input type="range" id="bright_slider" min="1.0" max="4.0" step="0.1" value="1.2">
-        <span class="val-disp" id="bright_val">120%</span>
+        <input type="range" id="bright_slider" min="0.5" max="3.0" step="0.1" value="1.0">
+        <span class="val-disp" id="bright_val">100%</span>
     </div>
     <div class="slider-row">
         <span>傾き</span>
@@ -86,8 +86,7 @@
     const cvs = document.getElementById('cvs'), ctx = cvs.getContext('2d');
     const bSlider = document.getElementById('bright_slider'), rSlider = document.getElementById('rotate_slider');
     const bDisp = document.getElementById('bright_val'), rDisp = document.getElementById('rotate_val');
-    const stage = document.getElementById('stage');
-    const tabLR = document.getElementById('tab_lr'), tabTB = document.getElementById('tab_tb');
+    const stage = document.getElementById('stage'), tabLR = document.getElementById('tab_lr'), tabTB = document.getElementById('tab_tb');
     
     let img = new Image();
     let lines = { out_l:0, out_r:0, out_t:0, out_b:0, in_l:0, in_r:0, in_t:0, in_b:0 };
@@ -114,7 +113,7 @@
 
     document.getElementById('file_input').onchange = e => {
         const file = e.target.files[0]; if(!file) return;
-        const r = new FileReader(); r.onload = ev => { img.src = ev.target.result; rSlider.value = 0; bSlider.value = 1.2; updateFilters(); }; r.readAsDataURL(file);
+        const r = new FileReader(); r.onload = ev => { img.src = ev.target.result; rSlider.value = 0; bSlider.value = 1.0; updateFilters(); }; r.readAsDataURL(file);
     };
 
     img.onload = () => { resizeCanvas(); };
@@ -143,8 +142,9 @@
         ctx.save();
         ctx.clearRect(0, 0, cvs.width, cvs.height);
         
-        // ★明るさ補正を画像のみに適用（120%をデフォルトに）
-        ctx.filter = `brightness(${bSlider.value})`;
+        // ★フィルターが1.0(100%)の時は何もせず、オリジナルを表示
+        if(bSlider.value != 1.0) ctx.filter = `brightness(${bSlider.value})`;
+        
         ctx.translate(cvs.width/2, cvs.height/2);
         ctx.rotate(rSlider.value * Math.PI / 180);
         ctx.drawImage(img, -cvs.width/2, -cvs.height/2, cvs.width, cvs.height);
@@ -174,7 +174,6 @@
         
         if (lp >= 45 && lp <= 55) tabLR.classList.add('is-perfect'); else tabLR.classList.remove('is-perfect');
         if (tp >= 45 && tp <= 55) tabTB.classList.add('is-perfect'); else tabTB.classList.remove('is-perfect');
-
         document.getElementById('active_indicator').innerText = "調整中：" + labelMap[activeKey];
     }
     function getPos(e) { const rect = cvs.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; }
