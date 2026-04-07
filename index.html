@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSA Analyzer v21</title>
+    <title>PSA Analyzer v22</title>
     <style>
         body { background: #121212; color: #eee; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; touch-action: manipulation; }
         #header { background: #1a1a1a; width: 100%; padding: 5px 0; text-align: center; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
         
         #stage { position: relative; background: #000; width: 100vw; overflow: hidden; display: flex; justify-content: center; }
-        canvas { display: block; width: 100%; height: auto; }
+        canvas { display: block; width: 100%; height: auto; touch-action: none; } /* タッチ干渉防止 */
 
-        /* スライダーと結果表示（上部に集約） */
         .top-info { width: 95%; background: rgba(30, 30, 30, 0.8); padding: 5px; border-radius: 8px; margin: 5px 0; display: flex; flex-direction: column; gap: 5px; }
         .slider-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
         input[type="range"] { flex: 1; accent-color: #adff2f; }
@@ -19,7 +18,7 @@
         .res-mini { flex: 1; background: #1f1f1f; padding: 5px; border-radius: 5px; text-align: center; border-top: 2px solid #444; }
         .pct-val { font-size: 18px; font-weight: bold; color: #00e5ff; }
 
-        /* ★十字キーを右下に「浮かせ」て固定 */
+        /* ★修正ポイント：pointer-events: none で台座をすり抜けさせる */
         .floating-ctrl { 
             position: fixed; 
             bottom: 20px; 
@@ -28,22 +27,20 @@
             display: grid; 
             grid-template-areas: ". up ." "left center right" ". down .";
             gap: 8px;
-            background: rgba(26, 26, 26, 0.7); /* 少し透けさせる */
-            padding: 10px;
-            border-radius: 20px;
-            backdrop-filter: blur(5px); /* 背景をぼかして見やすく */
-            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none; /* ← これで背景の透明部分は指を通します */
         }
         
+        /* ボタンだけは触れるように設定 */
         .floating-ctrl button { 
-            width: 55px; height: 55px; background: #333; color: white; border: 1px solid #666; 
+            pointer-events: auto; /* ← ボタン自体は触れるように戻す */
+            width: 55px; height: 55px; background: rgba(51, 51, 51, 0.9); color: white; border: 1px solid #666; 
             border-radius: 12px; cursor: pointer; font-size: 20px; font-weight: bold;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         .floating-ctrl button:active { background: #adff2f; color: #000; }
 
-        .btn-center { grid-area: center; background: #222 !important; border: 1px solid #444; color: #888; font-size: 12px; flex-direction: column; }
+        .btn-center { grid-area: center; background: rgba(34, 34, 34, 0.9) !important; border: 1px solid #444; color: #888; font-size: 12px; flex-direction: column; }
         .mode-fast { border-color: #adff2f !important; color: #adff2f !important; }
 
         #active_indicator { color: #adff2f; font-weight: bold; font-size: 14px; margin: 2px 0; }
@@ -171,7 +168,7 @@
         const r = cvs.getBoundingClientRect(); 
         startAction(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top); 
         isDrag = true;
-    });
+    }, {passive: false});
     cvs.addEventListener('touchmove', e => {
         if(!isDrag) return;
         const r = cvs.getBoundingClientRect();
