@@ -3,54 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSA Analyzer v26</title>
+    <title>PSA Analyzer v30 - Final</title>
     <style>
-        body { background: #121212; color: #eee; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; touch-action: manipulation; }
-        #header { background: #1a1a1a; width: 100%; padding: 5px 0; text-align: center; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
+        /* 全体のタッチ・選択を抑制 */
+        * { 
+            -webkit-user-select: none; 
+            user-select: none; 
+            -webkit-touch-callout: none; 
+            box-sizing: border-box;
+        }
         
-        #stage { position: relative; background: #000; width: 100vw; display: flex; justify-content: center; overflow: hidden; cursor: crosshair; }
+        body { 
+            background: #121212; color: #eee; font-family: sans-serif; margin: 0; 
+            display: flex; flex-direction: column; align-items: center; 
+            height: 100vh; overflow: hidden; touch-action: none; 
+        }
+        
+        #header { background: #1a1a1a; width: 100%; padding: 5px 0; text-align: center; border-bottom: 1px solid #333; z-index: 100; }
+        
+        #stage { position: relative; background: #000; width: 100vw; flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         canvas { display: block; width: 100%; height: auto; touch-action: none; }
 
-        .top-info { width: 95%; background: rgba(30, 30, 30, 0.8); padding: 8px; border-radius: 8px; margin: 5px 0; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+        /* 上部設定パネル */
+        .top-info { width: 95%; background: rgba(30, 30, 30, 0.9); padding: 10px; border-radius: 8px; margin: 5px 0; display: flex; flex-direction: column; gap: 8px; z-index: 10; border: 1px solid #444; }
         .slider-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #ccc; }
-        input[type="range"] { flex: 1; accent-color: #adff2f; height: 30px; }
+        input[type="range"] { flex: 1; accent-color: #adff2f; height: 30px; cursor: pointer; }
         
-        .step-btn { width: 35px; height: 35px; background: #444; color: #adff2f; border: 1px solid #666; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .val-disp { min-width: 40px; text-align: right; color: #adff2f; font-family: monospace; font-size: 13px; }
+        .step-btn { 
+            width: 40px; height: 35px; background: #444; color: #adff2f; border: 1px solid #666; 
+            border-radius: 6px; font-weight: bold; font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .step-btn:active { background: #adff2f; color: #000; }
+        .val-disp { min-width: 45px; text-align: right; color: #adff2f; font-family: monospace; font-weight: bold; }
         
-        .res-row { display: flex; gap: 5px; }
-        .res-mini { flex: 1; background: #1f1f1f; padding: 5px; border-radius: 5px; text-align: center; border-top: 2px solid #444; }
-        .pct-val { font-size: 18px; font-weight: bold; color: #00e5ff; }
+        .res-row { display: flex; gap: 8px; }
+        .res-mini { flex: 1; background: #1f1f1f; padding: 8px; border-radius: 6px; text-align: center; border-top: 2px solid #444; }
+        .pct-val { font-size: 20px; font-weight: bold; color: #00e5ff; }
 
-        /* ★移動可能な十字キー */
+        /* 十字キー（ドラッグ移動可能） */
         #ctrl_container { 
             position: fixed; bottom: 20px; right: 15px; z-index: 200;
             display: grid; grid-template-areas: ". up ." "left center right" ". down .";
             gap: 8px; pointer-events: none;
-            touch-action: none; /* ブラウザのスクロール防止 */
         }
         
-        /* 移動用の「つまみ」兼モードボタン */
         .btn-center { 
-            grid-area: center; background: rgba(173, 255, 47, 0.2) !important; border: 2px solid #adff2f !important; 
-            color: #adff2f; font-size: 10px; cursor: move !important; pointer-events: auto;
+            grid-area: center; background: rgba(173, 255, 47, 0.1) !important; border: 2px solid #adff2f !important; 
+            color: #adff2f; font-size: 10px; cursor: move; pointer-events: auto;
         }
+        .mode-active { border-color: #00e5ff !important; color: #00e5ff !important; background: rgba(0, 229, 255, 0.2) !important; }
 
         #ctrl_container button { 
-            pointer-events: auto; width: 55px; height: 55px; background: rgba(51, 51, 51, 0.85); color: white; border: 1px solid #666; 
-            border-radius: 12px; font-size: 20px; font-weight: bold;
-            display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            pointer-events: auto; width: 58px; height: 58px; background: rgba(51, 51, 51, 0.9); color: white; border: 1px solid #666; 
+            border-radius: 14px; font-size: 22px; font-weight: bold; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
         
-        #active_indicator { color: #adff2f; font-weight: bold; font-size: 13px; }
-        #drop_area { width: 90%; height: 35px; border: 1px dashed #666; line-height: 35px; text-align: center; border-radius: 8px; font-size: 13px; margin: 5px auto; cursor: pointer; }
+        #drop_area { width: 90%; height: 38px; border: 1px dashed #adff2f; line-height: 38px; text-align: center; border-radius: 8px; font-size: 14px; margin: 5px auto; cursor: pointer; color: #adff2f; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="header">
-    <div id="active_indicator">画像を選択してください</div>
-    <div id="drop_area" onclick="document.getElementById('file_input').click()">画像を選択</div>
+    <div id="active_indicator" style="color:#adff2f; font-size:13px; font-weight:bold; margin-bottom:2px;">画像を読み込んでください</div>
+    <div id="drop_area" onclick="document.getElementById('file_input').click()">＋ 画像を選択</div>
     <input type="file" id="file_input" style="display:none" accept="image/*">
 </div>
 
@@ -68,31 +85,28 @@
         <span class="val-disp" id="rotate_val">0.0°</span>
     </div>
     <div class="res-row">
-        <div class="res-mini">左右 <span class="pct-val" id="p_lr">--:--</span></div>
-        <div class="res-mini">上下 <span class="pct-val" id="p_tb">--:--</span></div>
+        <div class="res-mini">左右比率 <span class="pct-val" id="p_lr">--:--</span></div>
+        <div class="res-mini">上下比率 <span class="pct-val" id="p_tb">--:--</span></div>
     </div>
 </div>
 
 <div id="stage"><canvas id="cvs"></canvas></div>
 
 <div id="ctrl_container">
-    <button style="grid-area: up" onclick="doMove(-1)">▲</button>
-    <button style="grid-area: left" onclick="doMove(-1)">◀</button>
+    <button style="grid-area: up" onpointerdown="doMove(-1)">▲</button>
+    <button style="grid-area: left" onpointerdown="doMove(-1)">◀</button>
     <button id="mode_btn" class="btn-center">
         <span id="mode_txt" style="font-size:14px; font-weight:bold;">1px</span>
         <span>DRAG</span>
     </button>
-    <button style="grid-area: right" onclick="doMove(1)">▶</button>
-    <button style="grid-area: down" onclick="doMove(1)">▼</button>
+    <button style="grid-area: right" onpointerdown="doMove(1)">▶</button>
+    <button style="grid-area: down" onpointerdown="doMove(1)">▼</button>
 </div>
 
 <script>
-    const cvs = document.getElementById('cvs');
-    const ctx = cvs.getContext('2d');
-    const bSlider = document.getElementById('bright_slider');
-    const rSlider = document.getElementById('rotate_slider');
-    const bDisp = document.getElementById('bright_val');
-    const rDisp = document.getElementById('rotate_val');
+    const cvs = document.getElementById('cvs'), ctx = cvs.getContext('2d');
+    const bSlider = document.getElementById('bright_slider'), rSlider = document.getElementById('rotate_slider');
+    const bDisp = document.getElementById('bright_val'), rDisp = document.getElementById('rotate_val');
     
     let img = new Image();
     let lines = { out_l:0, out_r:0, out_t:0, out_b:0, in_l:0, in_r:0, in_t:0, in_b:0 };
@@ -100,41 +114,31 @@
     let activeKey = 'in_l', isDrag = false, isFastMode = false;
     let blinkValue = 0, blinkDir = 1;
 
-    // 十字キーの移動用ロジック
-    const ctrl = document.getElementById('ctrl_container');
-    const modeBtn = document.getElementById('mode_btn');
-    let isMovingCtrl = false;
+    // 十字キー移動・タップ判定
+    const ctrl = document.getElementById('ctrl_container'), modeBtn = document.getElementById('mode_btn');
+    let isMovingCtrl = false, moveStartTime = 0, hasMoved = false;
 
-    const onMoveStart = (e) => {
-        isMovingCtrl = true;
-        // 1px/10pxの切り替えも同時に行う
-        toggleMode();
-    };
-
-    modeBtn.addEventListener('mousedown', onMoveStart);
-    modeBtn.addEventListener('touchstart', onMoveStart);
-
-    window.addEventListener('mousemove', (e) => {
-        if (!isMovingCtrl) return;
-        ctrl.style.bottom = 'auto';
-        ctrl.style.right = 'auto';
-        ctrl.style.left = (e.clientX - 90) + 'px';
-        ctrl.style.top = (e.clientY - 90) + 'px';
+    modeBtn.addEventListener('pointerdown', (e) => {
+        isMovingCtrl = true; moveStartTime = Date.now(); hasMoved = false; e.preventDefault();
     });
 
-    window.addEventListener('touchmove', (e) => {
-        if (!isMovingCtrl) return;
-        const t = e.touches[0];
-        ctrl.style.bottom = 'auto';
-        ctrl.style.right = 'auto';
-        ctrl.style.left = (t.clientX - 90) + 'px';
-        ctrl.style.top = (t.clientY - 90) + 'px';
-    }, {passive: false});
+    window.addEventListener('pointermove', (e) => {
+        if (isMovingCtrl) {
+            hasMoved = true;
+            ctrl.style.bottom = 'auto'; ctrl.style.right = 'auto';
+            ctrl.style.left = (e.clientX - 90) + 'px'; ctrl.style.top = (e.clientY - 90) + 'px';
+        }
+        if (isDrag) {
+            const p = getPos(e);
+            lines[activeKey] = activeKey.match(/_l|_r/) ? p.x : p.y;
+        }
+    });
 
-    window.addEventListener('mouseup', () => isMovingCtrl = false);
-    window.addEventListener('touchend', () => isMovingCtrl = false);
+    window.addEventListener('pointerup', () => {
+        if (isMovingCtrl && (!hasMoved || (Date.now() - moveStartTime < 200))) toggleMode();
+        isMovingCtrl = false; isDrag = false;
+    });
 
-    // フィルタ更新
     const updateFilters = () => {
         bDisp.innerText = Math.round(bSlider.value * 100) + "%";
         rDisp.innerText = parseFloat(rSlider.value).toFixed(1) + "°";
@@ -161,14 +165,16 @@
         cvs.width = img.width * scale;
         cvs.height = img.height * scale;
         lines = { out_l:10, out_r:cvs.width-10, out_t:10, out_b:cvs.height-10, in_l:cvs.width*0.2, in_r:cvs.width*0.8, in_t:cvs.height*0.2, in_b:cvs.height*0.8 };
-        setInterval(draw, 30);
+        document.getElementById('drop_area').innerText = "画像を入れ替える";
     };
+
+    // 描画ループをセット
+    setInterval(draw, 30);
 
     function toggleMode() {
         isFastMode = !isFastMode;
         document.getElementById('mode_txt').innerText = isFastMode ? "10px" : "1px";
-        modeBtn.style.borderColor = isFastMode ? "#00e5ff" : "#adff2f";
-        modeBtn.style.color = isFastMode ? "#00e5ff" : "#adff2f";
+        modeBtn.classList.toggle('mode-active', isFastMode);
     }
 
     function doMove(dir) {
@@ -178,31 +184,34 @@
 
     function draw() {
         if(!img.src) return;
-        // 点滅アニメーション
         blinkValue += 0.05 * blinkDir;
         if(blinkValue > 1 || blinkValue < 0) blinkDir *= -1;
 
         ctx.save();
         ctx.clearRect(0, 0, cvs.width, cvs.height);
+        
+        // 画像描画
+        ctx.globalAlpha = 1.0; 
         ctx.translate(cvs.width/2, cvs.height/2);
         ctx.rotate(rSlider.value * Math.PI / 180);
         ctx.filter = `brightness(${bSlider.value}) contrast(1.05)`;
         ctx.drawImage(img, -cvs.width/2, -cvs.height/2, cvs.width, cvs.height);
         ctx.restore();
 
+        // 線の描画
         Object.keys(lines).forEach(key => {
             const val = lines[key];
             const isActive = (key === activeKey);
             ctx.beginPath();
-            ctx.setLineDash(key.startsWith('out') ? [10, 5] : [5, 5]);
+            ctx.setLineDash([15, 10]); // 広めの点線
             ctx.strokeStyle = key.startsWith('out') ? '#00e5ff' : '#adff2f';
-            
-            // 選択中の線は太くし、不透明度を点滅させる
             ctx.lineWidth = isActive ? 4 : 1;
             ctx.globalAlpha = isActive ? 0.4 + (blinkValue * 0.6) : 0.3;
-            
-            if(key.endsWith('_l') || key.endsWith('_r')) { ctx.moveTo(val, 0); ctx.lineTo(val, cvs.height); }
-            else { ctx.moveTo(0, val); ctx.lineTo(cvs.width, val); }
+            if(key.endsWith('_l') || key.endsWith('_r')) {
+                ctx.moveTo(val, 0); ctx.lineTo(val, cvs.height);
+            } else {
+                ctx.moveTo(0, val); ctx.lineTo(cvs.width, val);
+            }
             ctx.stroke();
         });
         calc();
@@ -220,30 +229,23 @@
 
     const getPos = (e) => {
         const rect = cvs.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return {
-            x: (clientX - rect.left) * (cvs.width / rect.width),
-            y: (clientY - rect.top) * (cvs.height / rect.height)
+        return { 
+            x: (e.clientX - rect.left) * (cvs.width / rect.width), 
+            y: (e.clientY - rect.top) * (cvs.height / rect.height) 
         };
     };
 
-    const startAction = (pos) => {
-        let minDist = 40, found = null;
+    cvs.addEventListener('pointerdown', e => {
+        const p = getPos(e);
+        let minDist = 45, found = null;
         Object.keys(lines).forEach(key => {
             const val = lines[key];
-            const dist = (key.endsWith('_l') || key.endsWith('_r')) ? Math.abs(pos.x - val) : Math.abs(pos.y - val);
+            const dist = key.match(/_l|_r/) ? Math.abs(p.x - val) : Math.abs(p.y - val);
             if(dist < minDist) { minDist = dist; found = key; }
         });
         if(found) { activeKey = found; isDrag = true; }
-    };
-
-    cvs.addEventListener('mousedown', e => startAction(getPos(e)));
-    cvs.addEventListener('touchstart', e => { startAction(getPos(e)); e.preventDefault(); }, {passive: false});
-    window.addEventListener('mousemove', e => { if(isDrag) { const p = getPos(e); lines[activeKey] = activeKey.match(/_l|_r/) ? p.x : p.y; } });
-    cvs.addEventListener('touchmove', e => { if(isDrag) { const p = getPos(e); lines[activeKey] = activeKey.match(/_l|_r/) ? p.x : p.y; e.preventDefault(); } }, {passive: false});
-    window.addEventListener('mouseup', () => isDrag = false);
-    window.addEventListener('touchend', () => isDrag = false);
+        e.preventDefault();
+    });
 </script>
 </body>
 </html>
