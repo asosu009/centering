@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSA Analyzer v24</title>
+    <title>PSA Analyzer v25</title>
     <style>
         body { background: #121212; color: #eee; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; touch-action: manipulation; }
         #header { background: #1a1a1a; width: 100%; padding: 5px 0; text-align: center; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
@@ -11,17 +11,24 @@
         #stage { position: relative; background: #000; width: 100vw; display: flex; justify-content: center; overflow: hidden; cursor: crosshair; }
         canvas { display: block; width: 100%; height: auto; touch-action: none; }
 
-        /* 設定パネル（スライダー類） */
         .top-info { width: 95%; background: rgba(30, 30, 30, 0.8); padding: 8px; border-radius: 8px; margin: 5px 0; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
-        .slider-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #ccc; }
-        input[type="range"] { flex: 1; accent-color: #adff2f; height: 20px; }
-        .val-disp { min-width: 35px; text-align: right; color: #adff2f; font-family: monospace; }
+        .slider-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #ccc; }
+        input[type="range"] { flex: 1; accent-color: #adff2f; height: 30px; }
+        
+        /* 微調整ボタンのスタイル */
+        .step-btn {
+            width: 35px; height: 35px; background: #444; color: #adff2f; border: 1px solid #666;
+            border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
+        }
+        .step-btn:active { background: #adff2f; color: #000; }
+
+        .val-disp { min-width: 40px; text-align: right; color: #adff2f; font-family: monospace; font-size: 13px; }
         
         .res-row { display: flex; gap: 5px; }
         .res-mini { flex: 1; background: #1f1f1f; padding: 5px; border-radius: 5px; text-align: center; border-top: 2px solid #444; }
         .pct-val { font-size: 18px; font-weight: bold; color: #00e5ff; }
 
-        /* 操作用十字キー（固定） */
         .floating-ctrl { 
             position: fixed; bottom: 20px; right: 15px; z-index: 200;
             display: grid; grid-template-areas: ". up ." "left center right" ". down .";
@@ -54,11 +61,15 @@
         <input type="range" id="bright_slider" min="0.5" max="2.0" step="0.05" value="1.1">
         <span class="val-disp" id="bright_val">110%</span>
     </div>
+    
     <div class="slider-row">
         <span>傾き</span>
+        <button class="step-btn" onclick="stepRotate(-0.1)">◀</button>
         <input type="range" id="rotate_slider" min="-5" max="5" step="0.1" value="0">
+        <button class="step-btn" onclick="stepRotate(0.1)">▶</button>
         <span class="val-disp" id="rotate_val">0.0°</span>
     </div>
+
     <div class="res-row">
         <div class="res-mini">左右 <span class="pct-val" id="p_lr">--:--</span></div>
         <div class="res-mini">上下 <span class="pct-val" id="p_tb">--:--</span></div>
@@ -91,11 +102,19 @@
     const labelMap = { out_l:"外枠：左", out_r:"外枠：右", out_t:"外枠：上", out_b:"外枠：下", in_l:"絵：左", in_r:"絵：右", in_t:"絵：上", in_b:"絵：下" };
     let activeKey = 'in_l', isDrag = false, isFastMode = false;
 
-    // スライダー連動
+    // フィルタ更新
     const updateFilters = () => {
         bDisp.innerText = Math.round(bSlider.value * 100) + "%";
         rDisp.innerText = parseFloat(rSlider.value).toFixed(1) + "°";
     };
+
+    // 0.1度ずつ動かす関数
+    window.stepRotate = (val) => {
+        let current = parseFloat(rSlider.value);
+        rSlider.value = (current + val).toFixed(1);
+        updateFilters();
+    };
+
     bSlider.oninput = updateFilters;
     rSlider.oninput = updateFilters;
 
@@ -131,15 +150,12 @@
         if(!img.src) return;
         ctx.save();
         ctx.clearRect(0, 0, cvs.width, cvs.height);
-        
-        // 回転と明るさの適用
         ctx.translate(cvs.width/2, cvs.height/2);
         ctx.rotate(rSlider.value * Math.PI / 180);
         ctx.filter = `brightness(${bSlider.value}) contrast(1.05)`;
         ctx.drawImage(img, -cvs.width/2, -cvs.height/2, cvs.width, cvs.height);
         ctx.restore();
 
-        // 線の描画（線は回転させない。画像だけを回して線に合わせるスタイル）
         Object.keys(lines).forEach(key => {
             const val = lines[key];
             const isActive = (key === activeKey);
