@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSA Analyzer v33 - Bright Fix</title>
+    <title>PSA Analyzer v36 - Rainbow Edition</title>
     <style>
         * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; box-sizing: border-box; }
         body { 
@@ -19,9 +19,30 @@
         input[type="range"] { flex: 1; accent-color: #adff2f; height: 30px; }
         .step-btn { width: 40px; height: 35px; background: #444; color: #adff2f; border: 1px solid #666; border-radius: 6px; font-weight: bold; font-size: 18px; }
         .val-disp { min-width: 45px; text-align: right; color: #adff2f; font-family: monospace; font-size: 12px; }
+        
+        /* 比率表示パネル */
         .res-row { display: flex; gap: 8px; }
-        .res-mini { flex: 1; background: #1f1f1f; padding: 5px; border-radius: 6px; text-align: center; border-top: 2px solid #444; }
+        .res-mini { 
+            flex: 1; background: #1f1f1f; padding: 5px; border-radius: 6px; 
+            text-align: center; border: 1px solid #444; transition: all 0.3s ease;
+        }
         .pct-val { font-size: 18px; font-weight: bold; color: #00e5ff; }
+
+        /* ★レインボーアニメーションの定義 */
+        @keyframes rainbow-bg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .is-perfect {
+            background: linear-gradient(270deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff00ff);
+            background-size: 400% 400%;
+            animation: rainbow-bg 3s ease infinite;
+            border: 1px solid #fff !important;
+        }
+        .is-perfect .pct-val { color: #fff !important; text-shadow: 0 0 5px #000; }
+        .is-perfect span:first-child { color: #fff !important; font-weight: bold; text-shadow: 0 0 5px #000; }
+
         #ctrl_container { position: fixed; bottom: 20px; right: 15px; z-index: 200; display: grid; grid-template-areas: ". up ." "left center right" ". down ."; gap: 8px; pointer-events: none; }
         .btn-center { grid-area: center; background: rgba(173, 255, 47, 0.1) !important; border: 2px solid #adff2f !important; color: #adff2f; font-size: 10px; pointer-events: auto; }
         .mode-active { border-color: #00e5ff !important; color: #00e5ff !important; background: rgba(0, 229, 255, 0.2) !important; }
@@ -51,8 +72,8 @@
         <span class="val-disp" id="rotate_val">0.0°</span>
     </div>
     <div class="res-row">
-        <div class="res-mini">左右 <span class="pct-val" id="p_lr">--:--</span></div>
-        <div class="res-mini">上下 <span class="pct-val" id="p_tb">--:--</span></div>
+        <div class="res-mini" id="tab_lr"><span>左右 </span><span class="pct-val" id="p_lr">--:--</span></div>
+        <div class="res-mini" id="tab_tb"><span>上下 </span><span class="pct-val" id="p_tb">--:--</span></div>
     </div>
 </div>
 
@@ -71,6 +92,7 @@
     const bSlider = document.getElementById('bright_slider'), rSlider = document.getElementById('rotate_slider');
     const bDisp = document.getElementById('bright_val'), rDisp = document.getElementById('rotate_val');
     const stage = document.getElementById('stage');
+    const tabLR = document.getElementById('tab_lr'), tabTB = document.getElementById('tab_tb');
     
     let img = new Image();
     let lines = { out_l:0, out_r:0, out_t:0, out_b:0, in_l:0, in_r:0, in_t:0, in_b:0 };
@@ -88,10 +110,7 @@
     });
     window.addEventListener('pointerup', () => { if (isMovingCtrl && (!hasMoved || (Date.now() - moveStartTime < 200))) toggleMode(); isMovingCtrl = false; isDrag = false; });
 
-    const updateFilters = () => { 
-        bDisp.innerText = Math.round(bSlider.value * 100) + "%"; 
-        rDisp.innerText = parseFloat(rSlider.value).toFixed(1) + "°"; 
-    };
+    const updateFilters = () => { bDisp.innerText = Math.round(bSlider.value * 100) + "%"; rDisp.innerText = parseFloat(rSlider.value).toFixed(1) + "°"; };
     window.stepRotate = (val) => { rSlider.value = (parseFloat(rSlider.value) + val).toFixed(1); updateFilters(); };
     bSlider.oninput = updateFilters; rSlider.oninput = updateFilters;
 
@@ -122,28 +141,18 @@
     function draw() {
         if(!img.src) return;
         blinkValue += 0.05 * blinkDir; if(blinkValue > 1 || blinkValue < 0) blinkDir *= -1;
-        
-        ctx.save();
-        ctx.clearRect(0, 0, cvs.width, cvs.height);
-        
-        // ★明るさ補正を強力＆正確に適用
+        ctx.save(); ctx.clearRect(0, 0, cvs.width, cvs.height);
         ctx.filter = `brightness(${bSlider.value})`; 
-        ctx.globalAlpha = 1.0;
-
-        ctx.translate(cvs.width/2, cvs.height/2);
-        ctx.rotate(rSlider.value * Math.PI / 180);
+        ctx.translate(cvs.width/2, cvs.height/2); ctx.rotate(rSlider.value * Math.PI / 180);
         ctx.drawImage(img, -cvs.width/2, -cvs.height/2, cvs.width, cvs.height);
-        
-        // フィルターをリセットしてから線を描画
-        ctx.filter = 'none';
-        ctx.restore();
+        ctx.filter = 'none'; ctx.restore();
 
         Object.keys(lines).forEach(key => {
             const val = lines[key], isActive = (key === activeKey);
             ctx.beginPath(); ctx.setLineDash([15, 10]);
             ctx.strokeStyle = key.startsWith('out') ? '#00e5ff' : '#adff2f';
-            ctx.lineWidth = isActive ? 4 : 1;
-            ctx.globalAlpha = isActive ? 0.4 + (blinkValue * 0.6) : 0.3;
+            ctx.lineWidth = isActive ? 4 : 1.2;
+            ctx.globalAlpha = isActive ? 0.4 + (blinkValue * 0.6) : 0.6;
             if(key.endsWith('_l') || key.endsWith('_r')) { ctx.moveTo(val, 0); ctx.lineTo(val, cvs.height); }
             else { ctx.moveTo(0, val); ctx.lineTo(cvs.width, val); }
             ctx.stroke();
@@ -155,8 +164,17 @@
         const l = Math.abs(lines.in_l - lines.out_l), r = Math.abs(lines.out_r - lines.in_r);
         const t = Math.abs(lines.in_t - lines.out_t), b = Math.abs(lines.out_b - lines.in_b);
         const lp = Math.round(l/(l+r)*100)||50, tp = Math.round(t/(t+b)*100)||50;
+        
         document.getElementById('p_lr').innerText = `${lp}:${100-lp}`;
         document.getElementById('p_tb').innerText = `${tp}:${100-tp}`;
+        
+        // ★合格判定（45:55 〜 55:45）
+        if (lp >= 45 && lp <= 55) tabLR.classList.add('is-perfect');
+        else tabLR.classList.remove('is-perfect');
+
+        if (tp >= 45 && tp <= 55) tabTB.classList.add('is-perfect');
+        else tabTB.classList.remove('is-perfect');
+
         document.getElementById('active_indicator').innerText = "調整中：" + labelMap[activeKey];
     }
     function getPos(e) { const rect = cvs.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; }
