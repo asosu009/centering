@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PSA Precision v18.0</title>
+    <style>
+        body { background: #121212; color: #eee; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; touch-action: manipulation; }
+        #header { background: #1a1a1a; width: 100%; padding: 10px 0; text-align: center; border-bottom: 2px solid #333; position: sticky; top: 0; z-index: 100; }
+       
+        #stage { position: relative; background: #000; margin: 5px; width: 98vw; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        canvas { display: block; filter: brightness(1.3) contrast(1.1); width: 100%; height: auto; }
+
+        /* 操作パネル：スマホでも押しやすい配置 */
+        .control-panel {
+            width: 100%; background: #1a1a1a; padding: 20px 0;
+            display: grid; grid-template-areas: ". up ." "left center right" ". down .";
+            gap: 10px; justify-content: center; border-top: 2px solid #333;
+        }
+       
+        button {
+            width: 70px; height: 70px; background: #333; color: white; border: 1px solid #666;
+            border-radius: 15px; cursor: pointer; font-size: 24px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
+        }
+        button:active { background: #adff2f; color: #000; }
+
+        .btn-center { grid-area: center; background: #222; border: 2px solid #444; color: #888; font-size: 14px; flex-direction: column; }
+        .mode-fast { border-color: #adff2f !important; color: #adff2f !important; }
+
+        .btn-up { grid-area: up; } .btn-down { grid-area: down; }
+        .btn-left { grid-area: left; } .btn-right { grid-area: right; }
+
+        .results-group { display: flex; gap: 5px; width: 95%; margin: 10px 0; }
+        .res-card { flex: 1; background: #1f1f1f; padding: 10px; border-radius: 8px; border-top: 4px solid #444; text-align: center; }
+        .pct-val { font-size: 24px; font-weight: bold; color: #00e5ff; }
+       
+        #active_indicator { color: #adff2f; font-weight: bold; font-size: 16px; margin-top: 5px; }
+        #drop_area { width: 90%; height: 50px; border: 2px dashed #666; margin: 10px; line-height: 50px; text-align: center; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <div id="active_indicator">画像を読み込んでください</div>
+</div>
+
+<div id="drop_area" onclick="document.getElementById('file_input').click()">
+    タップして画像を選択
+    <input type="file" id="file_input" style="display:none" accept="image/*">
+</div>
+
+<div id="stage"><canvas id="cvs"></canvas></div>
+
+<div class="results-group">
+    <div class="res-card" id="ui_lr"><div style="font-size:10px;color:#888">左右比率</div><div class="pct-val" id="p_lr">-- : --</div></div>
+    <div class="res-card" id="ui_tb"><div style="font-size:10px;color:#888">上下比率</div><div class="pct-val" id="p_tb">-- : --</div></div>
+</div>
+
+<div class="control-panel">
+    <button class="btn-up" onclick="doMove(-1)">▲</button>
+    <button class="btn-left" onclick="doMove(-1)">◀</button>
+    <button id="mode_btn" class="btn-center" onclick="toggleMode()">
+        <span id="mode_txt" style="font-size:18px;">1px</span>
+        <span>MODE</span>
+    </button>
+    <button class="btn-right" onclick="doMove(1)">▶</button>
+    <button class="btn-down" onclick="doMove(1)">▼</button>
+</div>
+
+<script>
+    const cvs = document.getElementById('cvs');
+    const ctx = cvs.getContext('2d');
+    let img = new Image();
+    let lines = { out_l:0, out_r:0, out_t:0, out_b:0, in_l:0, in_r:0, in_t:0, in_b:0 };
+    const labelMap = { out_l:"外枠：左", out_r:"外枠：右", out_t:"外枠：上", out_b:"外枠：下", in_l:"絵：左", in_r:"絵：右", in_t:"絵：上", in_b:"絵：下" };
+    let activeKey = 'in_l', isDrag = false, blinkOpacity = 1, blinkDir = -1, isFastMode = false;
+
+    document.getElementById('file_input').onchange = e => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const r = new FileReader();
+        r.onload = ev => { img.src = ev.target.result; };
+        r.readAsDataURL(file);
+    };
+
+    img.onload = () => {
+        const scale = window.innerWidth / img.width;
+        cvs.width = img.width * scale;
+        cvs.height = img.height * scale;
+        lines.out_l = 20; lines.out_r = cvs.width - 20;
+        lines.out_t = 20; lines.out_b = cvs.height - 20;
+        lines.in_l = cvs.width * 0.2; lines.in_r = cvs.width * 0.8;
+        lines.in_t = cvs.height * 0.2; lines.in_b = cvs.height * 0.8;
+        document.getElementById('drop_area').style.display = 'none';
+        setInterval(draw, 30);
+    };
+
+    function toggleMode() {
+        isFastMode = !isFastMode;
+        document.getElementById('mode_btn').classList.toggle('mode-fast', isFastMode);
+        document.getElementById('mode_txt').innerText = isFastMode ? "10px" : "1px";
+    }
+
+    function doMove(dir) {
+        if(!activeKey) return;
+        lines[activeKey] += (dir * (isFastMode ? 10 : 1));
+    }
+
+    function draw() {
+        if(!img.src) return;
+        blinkOpacity += blinkDir * 0.05;
+        if(blinkOpacity < 0.4 || blinkOpacity > 1) blinkDir *= -1;
+        ctx.clearRect(0,0,cvs.width, cvs.height);
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+        Object.keys(lines).forEach(key => {
+            const val = lines[key];
+            const isActive = (key === activeKey);
+            ctx.beginPath();
+            ctx.setLineDash(key.startsWith('out') ? [15, 10] : [5, 5]);
+            ctx.strokeStyle = key.startsWith('out') ? '#00e5ff' : '#adff2f';
+            ctx.lineWidth = isActive ? 4 : 2;
+            ctx.globalAlpha = isActive ? blinkOpacity : 0.4;
+            if(key.endsWith('_l') || key.endsWith('_r')) { ctx.moveTo(val, 0); ctx.lineTo(val, cvs.height); }
+            else { ctx.moveTo(0, val); ctx.lineTo(cvs.width, val); }
+            ctx.stroke();
+        });
+        calc();
+    }
+
+    function calc() {
+        const pxPerMm = Math.min(cvs.width, cvs.height) / 63;
+        const l = Math.abs(lines.in_l - lines.out_l)/pxPerMm, r = Math.abs(lines.out_r - lines.in_r)/pxPerMm;
+        const t = Math.abs(lines.in_t - lines.out_t)/pxPerMm, b = Math.abs(lines.out_b - lines.in_b)/pxPerMm;
+        const lp = Math.round(l/(l+r)*100)||50, tp = Math.round(t/(t+b)*100)||50;
+        document.getElementById('p_lr').innerText = `${lp}:${100-lp}`;
+        document.getElementById('p_tb').innerText = `${tp}:${100-tp}`;
+        document.getElementById('active_indicator').innerText = labelMap[activeKey];
+    }
+
+    // タッチ＆マウス共通
+    const startAction = (mx, my) => {
+        let minDist = 40, found = null;
+        Object.keys(lines).forEach(key => {
+            const val = lines[key];
+            const dist = (key.endsWith('_l') || key.endsWith('_r')) ? Math.abs(mx - val) : Math.abs(my - val);
+            if(dist < minDist) { minDist = dist; found = key; }
+        });
+        if(found) { activeKey = found; isDrag = true; }
+    };
+
+    cvs.addEventListener('touchstart', e => {
+        const r = cvs.getBoundingClientRect();
+        startAction(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
+    });
+    cvs.addEventListener('touchmove', e => {
+        if(!isDrag) return;
+        const r = cvs.getBoundingClientRect();
+        lines[activeKey] = (activeKey.endsWith('_l') || activeKey.endsWith('_r')) ? (e.touches[0].clientX - r.left) : (e.touches[0].clientY - r.top);
+        e.preventDefault();
+    }, {passive: false});
+    window.addEventListener('touchend', () => isDrag = false);
+
+    cvs.onmousedown = e => { const r = cvs.getBoundingClientRect(); startAction(e.clientX - r.left, e.clientY - r.top); };
+    window.onmousemove = e => { if(isDrag) { const r = cvs.getBoundingClientRect(); lines[activeKey] = (activeKey.endsWith('_l') || activeKey.endsWith('_r')) ? (e.clientX - r.left) : (e.clientY - r.top); } };
+    window.onmouseup = () => isDrag = false;
+</script>
+</body>
+</html>
