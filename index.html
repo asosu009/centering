@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSA Analyzer v36 - Rainbow Edition</title>
+    <title>PSA Analyzer v37 - Bright & Rainbow</title>
     <style>
         * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; box-sizing: border-box; }
         body { 
@@ -14,21 +14,17 @@
         #header { background: #1a1a1a; width: 100%; padding: 5px 0; text-align: center; border-bottom: 1px solid #333; z-index: 100; flex-shrink: 0; }
         .top-info { width: 95%; background: rgba(30, 30, 30, 0.95); padding: 8px; border-radius: 8px; margin: 5px 0; display: flex; flex-direction: column; gap: 5px; z-index: 100; border: 1px solid #444; flex-shrink: 0; }
         #stage { position: relative; background: #000; width: 100vw; flex-grow: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 10px; }
-        canvas { display: block; }
+        canvas { display: block; background-color: #222; } /* キャンバス自体の背景を少し明るく */
+
         .slider-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #ccc; }
         input[type="range"] { flex: 1; accent-color: #adff2f; height: 30px; }
         .step-btn { width: 40px; height: 35px; background: #444; color: #adff2f; border: 1px solid #666; border-radius: 6px; font-weight: bold; font-size: 18px; }
         .val-disp { min-width: 45px; text-align: right; color: #adff2f; font-family: monospace; font-size: 12px; }
         
-        /* 比率表示パネル */
         .res-row { display: flex; gap: 8px; }
-        .res-mini { 
-            flex: 1; background: #1f1f1f; padding: 5px; border-radius: 6px; 
-            text-align: center; border: 1px solid #444; transition: all 0.3s ease;
-        }
+        .res-mini { flex: 1; background: #1f1f1f; padding: 5px; border-radius: 6px; text-align: center; border: 1px solid #444; transition: all 0.3s ease; }
         .pct-val { font-size: 18px; font-weight: bold; color: #00e5ff; }
 
-        /* ★レインボーアニメーションの定義 */
         @keyframes rainbow-bg {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
@@ -40,13 +36,12 @@
             animation: rainbow-bg 3s ease infinite;
             border: 1px solid #fff !important;
         }
-        .is-perfect .pct-val { color: #fff !important; text-shadow: 0 0 5px #000; }
-        .is-perfect span:first-child { color: #fff !important; font-weight: bold; text-shadow: 0 0 5px #000; }
+        .is-perfect .pct-val, .is-perfect span { color: #fff !important; text-shadow: 1px 1px 2px #000; }
 
         #ctrl_container { position: fixed; bottom: 20px; right: 15px; z-index: 200; display: grid; grid-template-areas: ". up ." "left center right" ". down ."; gap: 8px; pointer-events: none; }
-        .btn-center { grid-area: center; background: rgba(173, 255, 47, 0.1) !important; border: 2px solid #adff2f !important; color: #adff2f; font-size: 10px; pointer-events: auto; }
-        .mode-active { border-color: #00e5ff !important; color: #00e5ff !important; background: rgba(0, 229, 255, 0.2) !important; }
         #ctrl_container button { pointer-events: auto; width: 55px; height: 55px; background: rgba(51, 51, 51, 0.95); color: white; border: 1px solid #666; border-radius: 12px; font-size: 20px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        .btn-center { grid-area: center; background: rgba(173, 255, 47, 0.1) !important; border: 2px solid #adff2f !important; color: #adff2f; font-size: 10px; }
+        .mode-active { border-color: #00e5ff !important; color: #00e5ff !important; background: rgba(0, 229, 255, 0.2) !important; }
         #drop_area { width: 90%; height: 35px; border: 1px dashed #adff2f; line-height: 35px; text-align: center; border-radius: 8px; font-size: 13px; margin: 5px auto; cursor: pointer; color: #adff2f; }
     </style>
 </head>
@@ -58,11 +53,11 @@
     <input type="file" id="file_input" style="display:none" accept="image/*">
 </div>
 
-<div class="top-info" id="top_panel">
+<div class="top-info">
     <div class="slider-row">
         <span>明るさ</span>
-        <input type="range" id="bright_slider" min="1.0" max="3.0" step="0.1" value="1.0">
-        <span class="val-disp" id="bright_val">100%</span>
+        <input type="range" id="bright_slider" min="1.0" max="4.0" step="0.1" value="1.2">
+        <span class="val-disp" id="bright_val">120%</span>
     </div>
     <div class="slider-row">
         <span>傾き</span>
@@ -105,18 +100,21 @@
 
     modeBtn.addEventListener('pointerdown', (e) => { isMovingCtrl = true; moveStartTime = Date.now(); hasMoved = false; e.preventDefault(); });
     window.addEventListener('pointermove', (e) => {
-        if (isMovingCtrl) { hasMoved = true; ctrl.style.bottom = 'auto'; ctrl.style.right = 'auto'; ctrl.style.left = (e.clientX - 90) + 'px'; ctrl.style.top = (e.clientY - 90) + 'px'; }
+        if (isMovingCtrl) { hasMoved = true; ctrl.style.left = (e.clientX - 90) + 'px'; ctrl.style.top = (e.clientY - 90) + 'px'; ctrl.style.bottom = 'auto'; ctrl.style.right = 'auto'; }
         if (isDrag) { const p = getPos(e); lines[activeKey] = activeKey.match(/_l|_r/) ? p.x : p.y; }
     });
     window.addEventListener('pointerup', () => { if (isMovingCtrl && (!hasMoved || (Date.now() - moveStartTime < 200))) toggleMode(); isMovingCtrl = false; isDrag = false; });
 
-    const updateFilters = () => { bDisp.innerText = Math.round(bSlider.value * 100) + "%"; rDisp.innerText = parseFloat(rSlider.value).toFixed(1) + "°"; };
+    const updateFilters = () => { 
+        bDisp.innerText = Math.round(bSlider.value * 100) + "%"; 
+        rDisp.innerText = parseFloat(rSlider.value).toFixed(1) + "°"; 
+    };
     window.stepRotate = (val) => { rSlider.value = (parseFloat(rSlider.value) + val).toFixed(1); updateFilters(); };
     bSlider.oninput = updateFilters; rSlider.oninput = updateFilters;
 
     document.getElementById('file_input').onchange = e => {
         const file = e.target.files[0]; if(!file) return;
-        const r = new FileReader(); r.onload = ev => { img.src = ev.target.result; rSlider.value = 0; bSlider.value = 1.0; updateFilters(); }; r.readAsDataURL(file);
+        const r = new FileReader(); r.onload = ev => { img.src = ev.target.result; rSlider.value = 0; bSlider.value = 1.2; updateFilters(); }; r.readAsDataURL(file);
     };
 
     img.onload = () => { resizeCanvas(); };
@@ -141,11 +139,18 @@
     function draw() {
         if(!img.src) return;
         blinkValue += 0.05 * blinkDir; if(blinkValue > 1 || blinkValue < 0) blinkDir *= -1;
-        ctx.save(); ctx.clearRect(0, 0, cvs.width, cvs.height);
-        ctx.filter = `brightness(${bSlider.value})`; 
-        ctx.translate(cvs.width/2, cvs.height/2); ctx.rotate(rSlider.value * Math.PI / 180);
+        
+        ctx.save();
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        
+        // ★明るさ補正を画像のみに適用（120%をデフォルトに）
+        ctx.filter = `brightness(${bSlider.value})`;
+        ctx.translate(cvs.width/2, cvs.height/2);
+        ctx.rotate(rSlider.value * Math.PI / 180);
         ctx.drawImage(img, -cvs.width/2, -cvs.height/2, cvs.width, cvs.height);
-        ctx.filter = 'none'; ctx.restore();
+        
+        ctx.filter = 'none';
+        ctx.restore();
 
         Object.keys(lines).forEach(key => {
             const val = lines[key], isActive = (key === activeKey);
@@ -164,16 +169,11 @@
         const l = Math.abs(lines.in_l - lines.out_l), r = Math.abs(lines.out_r - lines.in_r);
         const t = Math.abs(lines.in_t - lines.out_t), b = Math.abs(lines.out_b - lines.in_b);
         const lp = Math.round(l/(l+r)*100)||50, tp = Math.round(t/(t+b)*100)||50;
-        
         document.getElementById('p_lr').innerText = `${lp}:${100-lp}`;
         document.getElementById('p_tb').innerText = `${tp}:${100-tp}`;
         
-        // ★合格判定（45:55 〜 55:45）
-        if (lp >= 45 && lp <= 55) tabLR.classList.add('is-perfect');
-        else tabLR.classList.remove('is-perfect');
-
-        if (tp >= 45 && tp <= 55) tabTB.classList.add('is-perfect');
-        else tabTB.classList.remove('is-perfect');
+        if (lp >= 45 && lp <= 55) tabLR.classList.add('is-perfect'); else tabLR.classList.remove('is-perfect');
+        if (tp >= 45 && tp <= 55) tabTB.classList.add('is-perfect'); else tabTB.classList.remove('is-perfect');
 
         document.getElementById('active_indicator').innerText = "調整中：" + labelMap[activeKey];
     }
