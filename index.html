@@ -3,48 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSA Analyzer v22</title>
+    <title>PSA Analyzer v24</title>
     <style>
         body { background: #121212; color: #eee; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; touch-action: manipulation; }
         #header { background: #1a1a1a; width: 100%; padding: 5px 0; text-align: center; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
         
-        #stage { position: relative; background: #000; width: 100vw; overflow: hidden; display: flex; justify-content: center; }
-        canvas { display: block; width: 100%; height: auto; touch-action: none; } /* タッチ干渉防止 */
+        #stage { position: relative; background: #000; width: 100vw; display: flex; justify-content: center; overflow: hidden; cursor: crosshair; }
+        canvas { display: block; width: 100%; height: auto; touch-action: none; }
 
-        .top-info { width: 95%; background: rgba(30, 30, 30, 0.8); padding: 5px; border-radius: 8px; margin: 5px 0; display: flex; flex-direction: column; gap: 5px; }
-        .slider-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
-        input[type="range"] { flex: 1; accent-color: #adff2f; }
+        /* 設定パネル（スライダー類） */
+        .top-info { width: 95%; background: rgba(30, 30, 30, 0.8); padding: 8px; border-radius: 8px; margin: 5px 0; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+        .slider-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #ccc; }
+        input[type="range"] { flex: 1; accent-color: #adff2f; height: 20px; }
+        .val-disp { min-width: 35px; text-align: right; color: #adff2f; font-family: monospace; }
+        
         .res-row { display: flex; gap: 5px; }
         .res-mini { flex: 1; background: #1f1f1f; padding: 5px; border-radius: 5px; text-align: center; border-top: 2px solid #444; }
         .pct-val { font-size: 18px; font-weight: bold; color: #00e5ff; }
 
-        /* ★修正ポイント：pointer-events: none で台座をすり抜けさせる */
+        /* 操作用十字キー（固定） */
         .floating-ctrl { 
-            position: fixed; 
-            bottom: 20px; 
-            right: 15px; 
-            z-index: 200;
-            display: grid; 
-            grid-template-areas: ". up ." "left center right" ". down .";
-            gap: 8px;
-            pointer-events: none; /* ← これで背景の透明部分は指を通します */
+            position: fixed; bottom: 20px; right: 15px; z-index: 200;
+            display: grid; grid-template-areas: ". up ." "left center right" ". down .";
+            gap: 8px; pointer-events: none;
         }
-        
-        /* ボタンだけは触れるように設定 */
         .floating-ctrl button { 
-            pointer-events: auto; /* ← ボタン自体は触れるように戻す */
-            width: 55px; height: 55px; background: rgba(51, 51, 51, 0.9); color: white; border: 1px solid #666; 
+            pointer-events: auto; width: 55px; height: 55px; background: rgba(51, 51, 51, 0.9); color: white; border: 1px solid #666; 
             border-radius: 12px; cursor: pointer; font-size: 20px; font-weight: bold;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         .floating-ctrl button:active { background: #adff2f; color: #000; }
-
-        .btn-center { grid-area: center; background: rgba(34, 34, 34, 0.9) !important; border: 1px solid #444; color: #888; font-size: 12px; flex-direction: column; }
+        .btn-center { grid-area: center; background: rgba(34, 34, 34, 0.9) !important; color: #888; font-size: 12px; flex-direction: column; }
         .mode-fast { border-color: #adff2f !important; color: #adff2f !important; }
 
-        #active_indicator { color: #adff2f; font-weight: bold; font-size: 14px; margin: 2px 0; }
-        #drop_area { width: 90%; height: 40px; border: 1px dashed #666; line-height: 40px; text-align: center; border-radius: 8px; font-size: 14px; margin: 5px auto; }
+        #active_indicator { color: #adff2f; font-weight: bold; font-size: 13px; margin-bottom: 2px; }
+        #drop_area { width: 90%; height: 35px; border: 1px dashed #666; line-height: 35px; text-align: center; border-radius: 8px; font-size: 13px; margin: 5px auto; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -59,11 +52,16 @@
     <div class="slider-row">
         <span>明るさ</span>
         <input type="range" id="bright_slider" min="0.5" max="2.0" step="0.05" value="1.1">
-        <span id="bright_val">110%</span>
+        <span class="val-disp" id="bright_val">110%</span>
+    </div>
+    <div class="slider-row">
+        <span>傾き</span>
+        <input type="range" id="rotate_slider" min="-5" max="5" step="0.1" value="0">
+        <span class="val-disp" id="rotate_val">0.0°</span>
     </div>
     <div class="res-row">
-        <div class="res-mini">LR <span class="pct-val" id="p_lr">--:--</span></div>
-        <div class="res-mini">TB <span class="pct-val" id="p_tb">--:--</span></div>
+        <div class="res-mini">左右 <span class="pct-val" id="p_lr">--:--</span></div>
+        <div class="res-mini">上下 <span class="pct-val" id="p_tb">--:--</span></div>
     </div>
 </div>
 
@@ -83,24 +81,29 @@
 <script>
     const cvs = document.getElementById('cvs');
     const ctx = cvs.getContext('2d');
-    const slider = document.getElementById('bright_slider');
-    const brightDisp = document.getElementById('bright_val');
+    const bSlider = document.getElementById('bright_slider');
+    const rSlider = document.getElementById('rotate_slider');
+    const bDisp = document.getElementById('bright_val');
+    const rDisp = document.getElementById('rotate_val');
     
     let img = new Image();
     let lines = { out_l:0, out_r:0, out_t:0, out_b:0, in_l:0, in_r:0, in_t:0, in_b:0 };
     const labelMap = { out_l:"外枠：左", out_r:"外枠：右", out_t:"外枠：上", out_b:"外枠：下", in_l:"絵：左", in_r:"絵：右", in_t:"絵：上", in_b:"絵：下" };
     let activeKey = 'in_l', isDrag = false, isFastMode = false;
 
-    slider.oninput = () => {
-        brightDisp.innerText = Math.round(slider.value * 100) + "%";
-        cvs.style.filter = `brightness(${slider.value}) contrast(1.05)`;
+    // スライダー連動
+    const updateFilters = () => {
+        bDisp.innerText = Math.round(bSlider.value * 100) + "%";
+        rDisp.innerText = parseFloat(rSlider.value).toFixed(1) + "°";
     };
+    bSlider.oninput = updateFilters;
+    rSlider.oninput = updateFilters;
 
     document.getElementById('file_input').onchange = e => {
         const file = e.target.files[0];
         if(!file) return;
         const r = new FileReader();
-        r.onload = ev => { img.src = ev.target.result; };
+        r.onload = ev => { img.src = ev.target.result; rSlider.value = 0; updateFilters(); };
         r.readAsDataURL(file);
     };
 
@@ -110,7 +113,6 @@
         cvs.height = img.height * scale;
         lines = { out_l:10, out_r:cvs.width-10, out_t:10, out_b:cvs.height-10, in_l:cvs.width*0.2, in_r:cvs.width*0.8, in_t:cvs.height*0.2, in_b:cvs.height*0.8 };
         document.getElementById('drop_area').innerText = "画像変更";
-        cvs.style.filter = `brightness(${slider.value}) contrast(1.05)`;
         setInterval(draw, 30);
     };
 
@@ -127,8 +129,17 @@
 
     function draw() {
         if(!img.src) return;
-        ctx.clearRect(0,0,cvs.width, cvs.height);
-        ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+        ctx.save();
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        
+        // 回転と明るさの適用
+        ctx.translate(cvs.width/2, cvs.height/2);
+        ctx.rotate(rSlider.value * Math.PI / 180);
+        ctx.filter = `brightness(${bSlider.value}) contrast(1.05)`;
+        ctx.drawImage(img, -cvs.width/2, -cvs.height/2, cvs.width, cvs.height);
+        ctx.restore();
+
+        // 線の描画（線は回転させない。画像だけを回して線に合わせるスタイル）
         Object.keys(lines).forEach(key => {
             const val = lines[key];
             const isActive = (key === activeKey);
@@ -154,27 +165,31 @@
         document.getElementById('active_indicator').innerText = labelMap[activeKey];
     }
 
-    const startAction = (mx, my) => {
+    const getPos = (e) => {
+        const rect = cvs.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * (cvs.width / rect.width),
+            y: (clientY - rect.top) * (cvs.height / rect.height)
+        };
+    };
+
+    const startAction = (pos) => {
         let minDist = 40, found = null;
         Object.keys(lines).forEach(key => {
             const val = lines[key];
-            const dist = (key.endsWith('_l') || key.endsWith('_r')) ? Math.abs(mx - val) : Math.abs(my - val);
+            const dist = (key.endsWith('_l') || key.endsWith('_r')) ? Math.abs(pos.x - val) : Math.abs(pos.y - val);
             if(dist < minDist) { minDist = dist; found = key; }
         });
-        if(found) activeKey = found;
+        if(found) { activeKey = found; isDrag = true; }
     };
 
-    cvs.addEventListener('touchstart', e => { 
-        const r = cvs.getBoundingClientRect(); 
-        startAction(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top); 
-        isDrag = true;
-    }, {passive: false});
-    cvs.addEventListener('touchmove', e => {
-        if(!isDrag) return;
-        const r = cvs.getBoundingClientRect();
-        lines[activeKey] = (activeKey.endsWith('_l') || activeKey.endsWith('_r')) ? (e.touches[0].clientX - r.left) : (e.touches[0].clientY - r.top);
-        e.preventDefault();
-    }, {passive: false});
+    cvs.addEventListener('mousedown', e => startAction(getPos(e)));
+    cvs.addEventListener('touchstart', e => { startAction(getPos(e)); e.preventDefault(); }, {passive: false});
+    window.addEventListener('mousemove', e => { if(isDrag) { const p = getPos(e); lines[activeKey] = activeKey.match(/_l|_r/) ? p.x : p.y; } });
+    cvs.addEventListener('touchmove', e => { if(isDrag) { const p = getPos(e); lines[activeKey] = activeKey.match(/_l|_r/) ? p.x : p.y; e.preventDefault(); } }, {passive: false});
+    window.addEventListener('mouseup', () => isDrag = false);
     window.addEventListener('touchend', () => isDrag = false);
 </script>
 </body>
